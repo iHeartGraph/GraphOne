@@ -57,7 +57,12 @@ class vert_table_t {
     //XXX
     inline T* get_adjlist() { return 0;}
 	
-	inline delta_adjlist_t<T>* get_delta_adjlist() {return v_unit->delta_adjlist;}
+	inline delta_adjlist_t<T>* get_delta_adjlist() {
+        if (v_unit) {
+            return v_unit->delta_adjlist;
+        }
+        return 0;
+    }
 	inline void set_delta_adjlist(delta_adjlist_t<T>* delta_adjlist1) {
 		v_unit->delta_adjlist = delta_adjlist1;
 	}
@@ -122,6 +127,7 @@ class onegraph_t {
 private:
     //type id and vertices count together
     tid_t     tid;
+    pgraph_t<T>* pgraph;
 
     //array of adj list of vertices
     vert_table_t<T>* beg_pos;
@@ -173,7 +179,9 @@ public:
 
 public:
    onegraph_t(); 
+    void setup(pgraph_t<T>* pgraph1, tid_t tid);
     
+    degree_t get_degree(vid_t v, snapid_t snap_id);
     inline degree_t get_degree(vid_t vid) {
         return beg_pos[vid].get_nebrcount();
     }
@@ -181,10 +189,14 @@ public:
     inline degree_t get_delcount(vid_t vid) {
         return beg_pos[vid].get_delcount();
     }
-    degree_t get_nebrs(vid_t vid, T* ptr);
-    degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
-    void setup(tid_t tid);
 
+    degree_t get_nebrs(vid_t vid, T* ptr, degree_t count = -1);
+    degree_t get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t count);
+
+	inline delta_adjlist_t<T>* get_delta_adjlist(vid_t v) {
+        return beg_pos[v].get_delta_adjlist();
+    }
+    
     void     compress();
     status_t compress_nebrs(vid_t vid);
 

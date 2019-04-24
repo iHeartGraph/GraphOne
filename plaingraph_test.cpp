@@ -672,7 +672,7 @@ void weighted_dtest0(const string& idir, const string& odir)
     if (eOK == graph->move_marker(snap_marker)) {
         //graph->make_graph_baseline();
         //graph->store_graph_baseline();
-        g->incr_snapid();
+        //g->incr_snapid();
         graph->new_snapshot(snap_marker, snap_marker);
         //blog->blog_tail = marker;
         graph->update_marker();
@@ -686,12 +686,18 @@ void weighted_dtest0(const string& idir, const string& odir)
     free(nebrs);
 
     //-------Run bfs and PR------
-    uint8_t* level_array = 0;
-    level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    pgraph_t<lite_edge_t>* pgraph = (pgraph_t<lite_edge_t>*)manager.get_plaingraph();
+    snap_t<lite_edge_t>* snaph = create_static_view(pgraph, true, true, true);
     
+    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+    mem_bfs<lite_edge_t>(snaph, level_array, 0);
+    free(level_array);
+    mem_pagerank_epsilon<lite_edge_t>(snaph, 1e-8);
+
+    
+    /*
     vert_table_t<lite_edge_t>* beg_pos = sgraph->get_begpos();
-    degree_t* degree_snap = 0;
-    degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
+    degree_t* degree_snap = (degree_t*) calloc(v_count, sizeof(degree_t));
 
     index_t old_marker = 0;
     snapshot_t* snapshot = graph->get_snapshot();
@@ -712,18 +718,15 @@ void weighted_dtest0(const string& idir, const string& odir)
                    v_count, 1e-8);
 
     free(degree_snap);
-    free(level_array);
+    */
     
     //----
     //graph->store_graph_baseline();
     //----
 
-    manager.run_bfs(0);
     //-------Graph Updates-------
-    g->create_snapthread();
-    //g->create_wthread();
-
-    usleep(1000);
+    g->create_threads(true, false);
+    
     int fd1 = open(action_file.c_str(), O_RDONLY);
     assert(fd1 != -1);
     index_t size1 = fsize(fd1);
@@ -833,98 +836,99 @@ void weighted_dtest0(const string& idir, const string& odir)
     return ;
 }
 
-void plain_test1(const string& idir, const string& odir)
-{
-    plaingraph_manager.schema_plaingraph();
-    //do some setup for plain graphs
-    plaingraph_manager.setup_graph(v_count);    
-    plaingraph_manager.prep_graph(idir, odir);
-    
-    propid_t cf_id = g->get_cfid("friend");
-    ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
-    blog_t<sid_t>* blog = ugraph->blog;
-    cout << "snapshot id = " << g->get_snapid() << endl;
-    snapshot_t* snapshot = ugraph->get_snapshot();
-    //bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-    
-    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
-    
-    /*
-     * string idir1 = "/mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16_incr/"; 
-    //string idir1 = "../data/kron_21_16_incr/"; 
-    plaingraph_manager.prep_graph(idir1, odir);
-    */
-    snapid_t snap_id = g->get_snapid(); 
-    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
-    /*
-    cout << "BFS on whole graph" << endl; 
-    bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
-    
-    
-    //memset(level_array, 0, v_count*sizeof(uint8_t));
-    cout << "BFS on snap id = " << snap_id << endl; 
-    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id - 1, 1);
-    
-
-    cout << "multi-snap BFS" << endl;
-    multisnap_bfs<sid_t>(graph, graph, v_count, edge_count, snap_id - 1, snap_id , 1);
-    */
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    snapshot_t* old_snapshot = snapshot;
-    snapshot = ugraph->get_snapshot();
-    index_t marker = snapshot->marker;
-    
-    snap_id = old_snapshot->snap_id;
-    degree_t* degree_array = 0; 
-    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
-    create_degreesnap(graph, v_count, old_snapshot, old_snapshot->marker, blog->blog_beg, degree_array);
-    
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    /*
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    
-    old_snapshot = snapshot;
-    snapshot = g->get_snapshot();
-    marker = snapshot->marker;
-    snap_id = old_snapshot->snap_id;
-    degree_array = create_degreesnap(graph, v_count, snap_id);
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    old_snapshot = snapshot;
-    marker = snapshot->marker;
-    snap_id = old_snapshot->snap_id;
-    degree_array = create_degreesnap(graph, v_count, snap_id);
-    cout << "BFS on snap id = " << snap_id << endl; 
-    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
-    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
-                   old_snapshot, marker, blog->blog_beg,
-                   v_count, level_array, 1);
-    
-    */
-    /*
-    memset(level_array, 0, v_count*sizeof(uint8_t));
-    cout << "BFS on first snapshot" << endl; 
-    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id, 1);
-    */
-    return ;
-}
+//void plain_test1(const string& idir, const string& odir)
+//{
+//    plaingraph_manager.schema_plaingraph();
+//    //do some setup for plain graphs
+//    plaingraph_manager.setup_graph(v_count);    
+//    g->create_threads(true, false);   
+//    plaingraph_manager.prep_graph(idir, odir);
+//    
+//    propid_t cf_id = g->get_cfid("friend");
+//    ugraph_t* ugraph = (ugraph_t*)g->cf_info[cf_id];
+//    blog_t<sid_t>* blog = ugraph->blog;
+//    cout << "snapshot id = " << g->get_snapid() << endl;
+//    snapshot_t* snapshot = ugraph->get_snapshot();
+//    //bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
+//    
+//    vert_table_t<sid_t>* graph = ugraph->sgraph[0]->get_begpos();
+//    
+//    /*
+//     * string idir1 = "/mnt/disk_huge_1/pradeepk/pradeep_graph/kron_21_16_incr/"; 
+//    //string idir1 = "../data/kron_21_16_incr/"; 
+//    plaingraph_manager.prep_graph(idir1, odir);
+//    */
+//    snapid_t snap_id = g->get_snapid(); 
+//    uint8_t* level_array = (uint8_t*) calloc(v_count, sizeof(uint8_t));
+//    /*
+//    cout << "BFS on whole graph" << endl; 
+//    bfs<sid_t>(ugraph->sgraph, ugraph->sgraph, 1); 
+//    
+//    
+//    //memset(level_array, 0, v_count*sizeof(uint8_t));
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id - 1, 1);
+//    
+//
+//    cout << "multi-snap BFS" << endl;
+//    multisnap_bfs<sid_t>(graph, graph, v_count, edge_count, snap_id - 1, snap_id , 1);
+//    */
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    snapshot_t* old_snapshot = snapshot;
+//    snapshot = ugraph->get_snapshot();
+//    index_t marker = snapshot->marker;
+//    
+//    snap_id = old_snapshot->snap_id;
+//    degree_t* degree_array = 0; 
+//    degree_array = (degree_t*) calloc(v_count, sizeof(degree_t));
+//    create_degreesnap(graph, v_count, old_snapshot, old_snapshot->marker, blog->blog_beg, degree_array);
+//    
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    /*
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    
+//    old_snapshot = snapshot;
+//    snapshot = g->get_snapshot();
+//    marker = snapshot->marker;
+//    snap_id = old_snapshot->snap_id;
+//    degree_array = create_degreesnap(graph, v_count, snap_id);
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    old_snapshot = snapshot;
+//    marker = snapshot->marker;
+//    snap_id = old_snapshot->snap_id;
+//    degree_array = create_degreesnap(graph, v_count, snap_id);
+//    cout << "BFS on snap id = " << snap_id << endl; 
+//    cout << "old marker = " << old_snapshot->marker << " New marker = " << marker << endl;
+//    mem_bfs<sid_t>(graph, degree_array, graph, degree_array, 
+//                   old_snapshot, marker, blog->blog_beg,
+//                   v_count, level_array, 1);
+//    
+//    */
+//    /*
+//    memset(level_array, 0, v_count*sizeof(uint8_t));
+//    cout << "BFS on first snapshot" << endl; 
+//    snap_bfs<sid_t>(graph, graph, v_count, edge_count, level_array, snap_id, 1);
+//    */
+//    return ;
+//}
 
 template <class T>
 void prior_snap_testu(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
-    manager.restore_graph();
+    g->read_graph_baseline();
     pgraph_t<T>* pgraph = manager.get_plaingraph();
     //manager.run_bfs();
     
@@ -941,7 +945,7 @@ void prior_snap_testuni(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
-    manager.restore_graph();
+    g->read_graph_baseline();
     //manager.run_bfs();
     
     //Run using prior static view.
@@ -958,7 +962,7 @@ void recover_testu(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
-    manager.restore_graph();
+    g->read_graph_baseline();
     manager.run_bfs();
 
     return ;
@@ -969,7 +973,7 @@ void recover_testuni(const string& odir)
 {
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
-    manager.restore_graph();
+    g->read_graph_baseline();
     manager.run_bfs();
 
     return ;
@@ -982,12 +986,8 @@ void ingestion_fulluni(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph_vert_nocreate(v_count);
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     //manager.run_bfsd();    
     //g->store_graph_baseline();
@@ -1009,16 +1009,12 @@ void ingestion_fulld(const string& idir, const string& odir,
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
-    manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph_vert_nocreate(v_count); 
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     //g->store_graph_baseline();
-    cout << "stroing done" << endl;
+    //cout << "stroing done" << endl;
 }
 
 template <class T>
@@ -1029,13 +1025,9 @@ void test_ingestion_fulld(const string& idir, const string& odir,
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph_vert_nocreate(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     //g->store_graph_baseline();
     cout << "stroing done" << endl;
 }
@@ -1146,12 +1138,13 @@ void test_archived(const string& idir, const string& odir)
     
     //Run BFS
     for (int i = 0; i < 1; i++){
-        manager.run_bfsd();
+        manager.run_bfs();
     }
     /*
     //Run PageRank
     for (int i = 0; i < 1; i++){
         manager.run_pr();
+        manager.run_pr_simple();
     }
     
     //Run 1-HOP query
@@ -1201,8 +1194,53 @@ void test_loggingd(const string& idir, const string& odir)
     
     //Run BFS
     for (int i = 0; i < 1; i++){
-        manager.run_bfsd();
+        manager.run_bfs();
     }
+}
+
+template <class T>
+void test_logging_fromtext(const string& idir, const string& odir,
+                    typename callback<T>::parse_fn2_t parsefile_fn)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    manager.prep_graph_edgelog_fromtext(idir, odir, parsefile_fn);
+    
+    //Run BFS
+    for (int i = 0; i < 1; i++){
+        manager.run_bfs();
+    }
+}
+
+template <class T>
+void test_mix(const string& idir, const string& odir)
+{
+    plaingraph_manager_t<T> manager;
+    manager.schema_plaingraph();
+    //do some setup for plain graphs
+    manager.setup_graph(v_count);    
+    
+    manager.prep_graph_mix(idir, odir);
+    
+    //Run BFS
+    for (int i = 0; i < 1; i++){
+        manager.run_bfs();
+    }
+
+    //g->store_graph_baseline();
+    /*
+    //Run PageRank
+    for (int i = 0; i < 5; i++){
+        manager.run_pr();
+        manager.run_pr_simple();
+    }
+    
+    //Run 1-HOP query
+    for (int i = 0; i < 1; i++){
+        manager.run_1hop();
+    }*/
 }
 
 template <class T>
@@ -1220,17 +1258,18 @@ void test_archive(const string& idir, const string& odir)
         manager.run_bfs();
     }
 
-    g->store_graph_baseline();
-    /*
+    //g->store_graph_baseline();
+    
     //Run PageRank
     for (int i = 0; i < 1; i++){
         manager.run_pr();
+        manager.run_pr_simple();
     }
     
     //Run 1-HOP query
     for (int i = 0; i < 1; i++){
         manager.run_1hop();
-    }*/
+    }
 }
 
 template <class T>
@@ -1240,7 +1279,6 @@ void recover_test0(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    
     manager.recover_graph_adj(idir, odir);
     
     //Run BFS
@@ -1257,7 +1295,7 @@ void recover_test0d(const string& idir, const string& odir)
     manager.recover_graph_adj(idir, odir);    
     
     //Run BFS
-    manager.run_bfsd();
+    manager.run_bfs();
 }
 
 template <class T>
@@ -1267,8 +1305,9 @@ void test_ingestiond(const string& idir, const string& odir)
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     g->store_graph_baseline();
 }
 
@@ -1279,15 +1318,15 @@ void test_ingestionuni(const string& idir, const string& odir)
     manager.schema_plaingraphuni();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     g->store_graph_baseline();
 }
 
 template <class T>
 void test_ingestion_memory(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     if ( 0 != residue) {
         LOCAL_DELTA_SIZE = residue;
         cout << "local delta size  << " << residue << endl; 
@@ -1296,7 +1335,9 @@ void test_ingestion_memory(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, false);   
     manager.prep_graph(idir, odir); 
+    
     manager.run_bfs();    
     pgraph_t<T>* graph = manager.get_plaingraph();
     double start = mywtime();
@@ -1310,19 +1351,19 @@ template<class T>
 void test_ingestion_memoryd(const string& idir, const string& odir)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, false);   
     manager.prep_graph(idir, odir); 
-    manager.run_bfsd();    
+    manager.run_bfs();    
     
     pgraph_t<T>* graph = manager.get_plaingraph();
     double start = mywtime();
     graph->compress_graph_baseline();
     double end = mywtime();
     cout << "Compress time = " << end - start << endl;
-    manager.run_bfsd();
+    manager.run_bfs();
 }
 
 
@@ -1331,15 +1372,10 @@ void ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1350,15 +1386,10 @@ void ingestion_fromtextd(const string& idir, const string& odir,
                      typename callback<T>::parse_fn_t parsefile_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraphd();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    g->create_threads(true, false);
     manager.prep_graph_fromtext(idir, odir, parsefile_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1369,15 +1400,10 @@ void test_ingestion_fromtext(const string& idir, const string& odir,
                      typename callback<T>::parse_fn2_t parsebuf_fn)
 {
     plaingraph_manager_t<T> manager;
-    THD_COUNT = omp_get_max_threads() - 1;
     manager.schema_plaingraph();
     //do some setup for plain graphs
-    manager.setup_graph(v_count);    
-    //-----
-    //g->create_wthread();
-    g->create_snapthread();
-    usleep(1000);
-    //-----
+    manager.setup_graph(v_count);
+    g->create_threads(true, false);   
     manager.prep_graph_fromtext2(idir, odir, parsebuf_fn); 
     manager.run_bfs();
     g->store_graph_baseline();    
@@ -1390,6 +1416,7 @@ void test_ingestion(const string& idir, const string& odir)
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
+    g->create_threads(true, true);   
     manager.prep_graph_durable(idir, odir); 
     manager.run_bfs();    
     g->store_graph_baseline();
@@ -1411,7 +1438,6 @@ void stream_wcc(const string& idir, const string& odir)
 template <class T>
 void test_stream_pr(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
     //do some setup for plain graphs
@@ -1426,14 +1452,13 @@ void test_stream_pr(const string& idir, const string& odir)
 template <class T>
 void test_serial_stream_pr(const string& idir, const string& odir)
 {
-    THD_COUNT = omp_get_max_threads() - 1;
     plaingraph_manager_t<T> manager;
     manager.schema_plaingraph();
     //do some setup for plain graphs
     manager.setup_graph(v_count);    
     pgraph_t<T>* graph = manager.get_plaingraph();
     
-    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon<T>, 0, 0 ,0);
+    sstream_t<T>* sstreamh = reg_sstream_view(graph, &stream_pagerank_epsilon1<T>, 0, 0 ,0);
     
     manager.prep_graph_serial_scompute(idir, odir, sstreamh);
 }
@@ -1443,7 +1468,7 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
     v_count = v_count1; 
     switch (job) {
         case 1:
-            plain_test1(idir, odir);
+            test_mix<sid_t>(idir, odir);
             break;
         case 2:
             recover_testu<sid_t>(odir);
@@ -1453,6 +1478,12 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 6:
             recover_testuni<netflow_dst_t>(odir);
+            break;
+        case 7:
+            recover_test0<sid_t>(idir, odir);
+            break;
+        case 8:
+            recover_test0d<sid_t>(idir, odir);
             break;
         
         case 9:
@@ -1490,6 +1521,9 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
             break;
         case 19: 
             test_ingestion_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
+            break;
+        case 20: 
+            test_logging_fromtext<sid_t>(idir, odir, parsebuf_and_insert);
             break;
 
         //plaingrah benchmark testing    
@@ -1556,12 +1590,6 @@ void plain_test(vid_t v_count1, const string& idir, const string& odir, int job)
         
         case 94:
             stream_netflow_aggregation(idir, odir);
-            break;
-        case 95:
-            recover_test0<sid_t>(idir, odir);
-            break;
-        case 96:
-            recover_test0d<sid_t>(idir, odir);
             break;
         case 97:
             estimate_chain_new<sid_t>(idir, odir);

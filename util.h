@@ -152,27 +152,37 @@ void read_idir_text(const string& idirname, const string& odirname, pgraph_t<T>*
     string filename;
     string ofilename;
 
-    vid_t vid = 0;
-        
+    //count the files
+    dir = opendir(idirname.c_str());
+    while (NULL != (ptr = readdir(dir))) {
+        if (ptr->d_name[0] == '.') continue;
+        file_count++;
+    }
+    closedir(dir);
+    assert(file_count !=0);
+    
+    string* ifiles = new string[file_count];
+    int     icount = 0;
+    
     //Read graph files
-    double start = mywtime();
     dir = opendir(idirname.c_str());
     while (NULL != (ptr = readdir(dir))) {
         if (ptr->d_name[0] == '.') continue;
         filename = idirname + "/" + string(ptr->d_name);
-        ofilename = odirname + "/" + string(ptr->d_name);
-        cout << "ifile= "  << filename << endl 
-                <<" ofile=" << ofilename << endl;
-
-        file_count++;
-        parsefile_and_insert(filename, ofilename, pgraph);
-        double end = mywtime();
-        cout <<" Time = "<< end - start;
-        vid = g->get_type_scount();
-        cout << " vertex count" << vid << endl;
+        cout << "ifile= "  << filename << endl ;
+        ifiles[icount++] = filename;
     }
     closedir(dir);
-    vid = g->get_type_scount();
+
+    double end ;
+    double start = mywtime();
+    //#pragma omp parallel for num_threads(16) schedule(static)
+    for (int i = 0; i < icount; ++i) {
+        parsefile_and_insert(ifiles[i], ofilename, pgraph);
+    }
+    end = mywtime();
+    cout <<" Batching Time = "<< end - start;
+    vid_t vid = g->get_type_scount();
     cout << "vertex count" << vid << endl;
     return;
 }
@@ -184,14 +194,20 @@ void read_idir_text2(const string& idirname, const string& odirname, pgraph_t<T>
     
     //allocate accuately
     char* buf = 0;
+    double start = mywtime(); 
     index_t total_size = alloc_mem_dir(idirname, &buf, true);
     if (total_size != read_text_dir(idirname, buf)) {
         assert(0);
     }
+    double end = mywtime();
+    cout << "  Read/alloc time = " << end - start << endl;
     
-    parsebuf_and_insert(buf, pgraph);
-    vid_t vid = g->get_type_scount();
-    cout << "vertex count" << vid << endl;
+    start = mywtime(); 
+    index_t line = parsebuf_and_insert(buf, pgraph);
+    end = mywtime();
+    //vid_t vid = g->get_type_scount();
+    //cout << "vertex count " << vid << endl;
+    cout << "  Batching time = " << end - start << " Edges = " << line << endl;
     return;
 }
 

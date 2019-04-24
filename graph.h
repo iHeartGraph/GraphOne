@@ -63,17 +63,6 @@ class graph {
     typekv_t* typekv;
     string    odirname;
     
-    //threads
-    pthread_t snap_thread;
-    pthread_mutex_t snap_mutex;
-    pthread_cond_t  snap_condition;
-    
-    pthread_t w_thread;
-    pthread_mutex_t w_mutex;
-    pthread_cond_t  w_condition;
-
-    index_t snap_id;
-
  public:
     graph();
     inline void set_odir(const string& odir) {
@@ -83,8 +72,6 @@ class graph {
     void register_instances();
     void create_schema(propid_t count, const string& conf_file);
     
-    snapid_t get_snapid();
-    void incr_snapid();
     inline cfinfo_t* get_sgraph(propid_t cfid) { return cf_info[cfid];}
     inline typekv_t* get_typekv() { return (typekv_t*)cf_info[0]; }
     vid_t get_type_scount(tid_t type = 0);
@@ -118,7 +105,7 @@ class graph {
     
     void prep_graph_baseline();
     void swap_log_buffer();
-    void calc_degree();
+    void waitfor_archive();
     void make_graph_baseline();
     void create_snapshot();
     void write_edgelog();
@@ -126,11 +113,7 @@ class graph {
     void read_graph_baseline();
     void file_open(bool trunc);
     
-    void create_snapthread();
-    static void* snap_func(void* arg);
-
-    void create_wthread();
-    static void* w_func(void* arg);
+    void create_threads(bool snap_thd, bool w_thd);
 };
 
 

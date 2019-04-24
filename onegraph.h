@@ -6,7 +6,7 @@ using std::min;
 #ifndef BULK
 template <class T>
 void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
-	snapid_t snap_id = g->get_snapid() + 1;
+	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = beg_pos[vid].get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -34,7 +34,7 @@ void onegraph_t<T>::increment_count_noatomic(vid_t vid, degree_t count /*=1*/) {
 }
 template <class T>
 void onegraph_t<T>::decrement_count_noatomic(vid_t vid) {
-	snapid_t snap_id = g->get_snapid() + 1;
+	snapid_t snap_id = pgraph->snap_id + 1;
 	snapT_t<T>* curr = beg_pos[vid].get_snapblob();
 	if (curr == 0 || curr->snap_id < snap_id) {
 		//allocate new snap blob 
@@ -129,7 +129,6 @@ void onegraph_t<T>::compress()
     for (vid_t vid = 0; vid < v_count; ++vid) {
         compress_nebrs(vid);
     }
-
 }
 
 template <class T>
@@ -175,13 +174,14 @@ status_t onegraph_t<T>::compress_nebrs(vid_t vid)
 }
 
 template <class T>
-degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr)
+degree_t onegraph_t<T>::get_nebrs(vid_t vid, T* ptr, degree_t count /*=-1*/)
 {
     vunit_t<T>* v_unit = beg_pos[vid].get_vunit();
     if (v_unit == 0) return 0;
 
-    degree_t nebr_count = get_degree(vid);
-    degree_t del_count  = get_delcount(vid);
+    degree_t nebr_count = count; 
+    if (count == -1) nebr_count = get_degree(vid);
+    degree_t del_count  = get_delcount(vid);//XXX
     degree_t local_degree = 0;
     degree_t i_count = 0;
     degree_t total_count = 0;
@@ -280,6 +280,30 @@ degree_t onegraph_t<T>::get_wnebrs(vid_t vid, T* ptr, degree_t start, degree_t c
     }
     return total_count;
 }
+
+template <class T>
+degree_t onegraph_t<T>::get_degree(vid_t v, snapid_t snap_id)
+{
+    snapT_t<T>* snap_blob = beg_pos[v].get_snapblob();
+    if (0 == snap_blob) { 
+        return 0;
+    }
+    
+    degree_t nebr_count = 0;
+    if (snap_id >= snap_blob->snap_id) {
+        nebr_count = snap_blob->degree; 
+    } else {
+        snap_blob = snap_blob->prev;
+        while (snap_blob && snap_id < snap_blob->snap_id) {
+            snap_blob = snap_blob->prev;
+        }
+        if (snap_blob) {
+            nebr_count = snap_blob->degree; 
+        }
+    }
+    return nebr_count;
+}
+
 #ifdef BULK
 template <class T>
 void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
@@ -288,7 +312,7 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 	vunit_t<T>* v_unit = 0;
     snapT_t<T>* curr;
 	snapT_t<T>* next;
-    snapid_t snap_id = g->get_snapid() + 1;
+    snapid_t snap_id = pgraph->snap_id + 1;
 	int tid = omp_get_thread_num();
 	thd_mem_t<T>* my_thd_mem = thd_mem + tid;
 	memset(my_thd_mem, 0, sizeof(thd_mem_t<T>));
@@ -388,8 +412,9 @@ void onegraph_t<T>::setup_adjlist_noatomic(vid_t vid_start, vid_t vid_end)
 #endif
 
 template <class T>
-void onegraph_t<T>::setup(tid_t t)
+void onegraph_t<T>::setup(pgraph_t<T>* pgraph1, tid_t t)
 {
+    pgraph = pgraph1;
     tid = t;
     vid_t max_vcount = g->get_type_scount(tid);;
     beg_pos = (vert_table_t<T>*)calloc(sizeof(vert_table_t<T>), max_vcount);
@@ -538,7 +563,7 @@ template <class T>
 void onegraph_t<T>::setup_adjlist()
 {
     vid_t    v_count = g->get_type_vcount(tid);
-    snapid_t snap_id = g->get_snapid() + 1;
+    snapid_t snap_id = pgraph->snap_id + 1;
     
     snapT_t<T>* curr;
 	vunit_t<T>* v_unit = 0;

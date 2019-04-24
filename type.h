@@ -19,7 +19,7 @@ typedef uint64_t index_t;
 typedef uint32_t tid_t;
 typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
-typedef uint16_t snapid_t ;
+typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
 typedef int32_t degree_t;
 #elif B32
@@ -31,9 +31,9 @@ typedef uint64_t index_t;
 typedef uint8_t tid_t;
 typedef uint64_t sflag_t;
 typedef uint16_t qid_t;
-typedef uint16_t snapid_t ;
+typedef uint64_t snapid_t ;
 //typedef uint16_t rdegree_t; //relative degree
-typedef uint32_t degree_t;
+typedef int32_t degree_t;
 #endif
 
 typedef uint16_t vflag_t;
@@ -455,7 +455,7 @@ class  snapT_t {
  public:
     snapT_t<T>*     prev;//prev snapshot of this vid 
     degree_t  degree;
-    snapid_t  snap_id;
+    uint16_t  snap_id;
     uint16_t  del_count;
 };
 
@@ -547,6 +547,13 @@ class blog_t {
         index_t index1 = (index & blog_mask);
         blog_beg[index1] = edge;
         return index+1;
+    }
+    inline void readfrom_snapshot(snapshot_t* global_snapshot) {
+        blog_head = global_snapshot->marker;
+        blog_tail = global_snapshot->marker;
+        blog_marker = global_snapshot->marker;
+        blog_wtail = global_snapshot->durable_marker;
+        blog_wmarker = global_snapshot->durable_marker; 
     }
 };
     
@@ -649,7 +656,6 @@ class global_range_t {
 //for each thread 
 class thd_local_t {
   public:
-      //For each thread
-      vid_t* vid_range;
+      vid_t* vid_range; //For each range
       vid_t  range_end;
 };

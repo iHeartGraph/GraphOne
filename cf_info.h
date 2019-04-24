@@ -33,6 +33,12 @@ enum filter_fn_t {
     //More coming soon such as regex
 };
 
+enum gtype_t {
+    etype = 0,
+    egraph,
+    evlabel, 
+};
+
 class prop_encoder_t;
 
 //Column Family
@@ -45,6 +51,8 @@ class cfinfo_t {
 
     prop_encoder_t* prop_encoder;
 
+    snapid_t    snap_id;
+    gtype_t     gtype;
     sflag_t     flag1;
     sflag_t     flag2;
     
@@ -58,18 +66,34 @@ class cfinfo_t {
     index_t    q_head;
     index_t    q_tail;
     
+    //threads
+    pthread_t       snap_thread;
+    pthread_mutex_t snap_mutex;
+    pthread_cond_t  snap_condition;
+    
+    pthread_t       w_thread;
+    pthread_mutex_t w_mutex;
+    pthread_cond_t  w_condition;
+    
     snapshot_t*  snapshot;
     string       snapfile;
     FILE*        snap_f;
     int          wtf;   //edge log file
 
  public: 
-    cfinfo_t();   
+    cfinfo_t(gtype_t type = evlabel);   
+    
+    void create_wthread();
+    static void* w_func(void* arg);
+    void create_snapthread();
+    static void* snap_func(void* arg);
+    
     status_t create_snapshot();
     void new_snapshot(index_t snap_marker, index_t durable_marker = 0);
     void reset();
     inline snapshot_t* get_snapshot() {return snapshot;}
     void read_snapshot();
+    void write_snapshot();
 
  public:
     void create_columns(propid_t prop_count);
@@ -83,11 +107,11 @@ class cfinfo_t {
     virtual status_t batch_update(const string& src, const string& dst, propid_t pid, 
                           propid_t count, prop_pair_t* prop_pair, int del = 0);
     
-    virtual void create_marker(index_t marker) {return ;};    
+    virtual index_t create_marker(index_t marker) {return marker;};    
     virtual index_t update_marker() {return 0;};    
     virtual status_t move_marker(index_t& snap_marker);
     virtual void prep_graph_baseline();
-    virtual void calc_degree();
+    virtual void waitfor_archive();
     virtual void make_graph_baseline();
     virtual status_t write_edgelog();
     virtual void compress_graph_baseline();
